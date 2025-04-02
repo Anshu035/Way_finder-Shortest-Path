@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shortest Route Finder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #6dd5ed, #dd66bc); 
+            color: white;
+        }
+        h2 {
+            margin-top: 20px;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #pathInfo {
+            font-size: 20px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        #map {
+            width: 80%;
+            height: 500px;
+            margin: 20px auto;
+            border-radius: 10px;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        .btn {
+            background: white;
+            color: #2193b0;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Shortest Path Finder</h2>
+    <p id="pathInfo">Fetching route...</p>
+    <div id="map"></div>
+    <button class="btn" onclick="goBack()">Back</button>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        function getQueryParams() {
+            const params = {};
+            window.location.search.substring(1).split('&').forEach(param => {
+                const [key, value] = param.split('=');
+                params[decodeURIComponent(key)] = decodeURIComponent(value);
+            });
+            return params;
+        }
+
+        const { start, end } = getQueryParams();
+        document.getElementById('pathInfo').innerText = `Shortest path from ${start} to ${end}:`;
+        const map = L.map('map').setView([20.5937, 78.9629], 5); 
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        fetch(`http://127.0.0.1:5000/shortest-path?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                const route = data.route;
+                if (!route || route.length === 0) {
+                    alert("No route data received from the backend.");
+                    return;
+                }
+
+                const routeCoords = route.map(coord => [coord[1], coord[0]]); 
+
+                L.polyline(routeCoords, { color: 'green', weight: 5 }).addTo(map);
+
+                const bounds = L.latLngBounds(routeCoords);
+                map.fitBounds(bounds);
+                L.marker(routeCoords[0]).addTo(map).bindPopup(`Start: ${start}`);
+                L.marker(routeCoords[routeCoords.length - 1]).addTo(map).bindPopup(`End: ${end}`);
+            })
+            .catch(error => console.error('Error fetching shortest path:', error));
+        function goBack() {
+            window.history.back();
+        }
+    </script>
+
+</body>
+</html>
